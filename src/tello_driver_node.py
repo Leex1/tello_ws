@@ -170,6 +170,7 @@ class TelloNode(tello.Tello):
 
         calib_path = rospy.get_param('~camera_calib', '') 
         self.caminfo = cim.loadCalibrationFile(calib_path, 'camera_front')
+        self.caminfo.header.frame_id = rospy.get_param('~camera_frame', rospy.get_namespace() + 'camera_front')
         self.pub_caminfo = rospy.Publisher('camera/camera_info', CameraInfo, queue_size=1, latch=True)                
         self.pub_caminfo.publish(self.caminfo)
 
@@ -408,7 +409,7 @@ class TelloNode(tello.Tello):
         odom_msg.twist.twist.linear.y = data.mvo.vel_x/10
         odom_msg.twist.twist.linear.z = -data.mvo.vel_z/10
 
-        odom_msg.child_frame_id = 'Tello'
+        odom_msg.child_frame_id = rospy.get_namespace() + 'base_link'
         odom_msg.header.stamp = rospy.Time.now()
                 
         self.pub_odom.publish(odom_msg)
@@ -437,7 +438,7 @@ class TelloNode(tello.Tello):
         frame, seq_id, frame_secs = data
         pkt_msg = H264Packet()
         pkt_msg.header.seq = seq_id
-        pkt_msg.header.frame_id = rospy.get_namespace()
+        pkt_msg.header.frame_id = self.caminfo.header.frame_id
         pkt_msg.header.stamp = rospy.Time.from_sec(frame_secs)
         pkt_msg.data = frame
         self.pub_image_h264.publish(pkt_msg)
@@ -465,7 +466,7 @@ class TelloNode(tello.Tello):
                     img = np.array(frame.to_image())
                     try:
                         img_msg = self.bridge.cv2_to_imgmsg(img, 'rgb8')
-                        img_msg.header.frame_id = rospy.get_namespace()
+                        img_msg.header.frame_id = self.caminfo.header.frame_id
                     except CvBridgeError as err:
                         rospy.logerr('fgrab: cv bridge failed - %s' % str(err))
                         continue

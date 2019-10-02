@@ -13,7 +13,6 @@ Developing of the tello_driver ROS package is inspired by [tello_driver](https:/
 * ```$ python setup.py install --user```
 * ```$ cd ..```
 * ```$ git clone https://github.com/appie-17/tello_driver.git```
-* ```$ git clone https://github.com/tilk/h264_image_transport.git```
 * ```$ cd ..```
 * ```$ catkin_make```
 * ```$ source devel/setup.bash```

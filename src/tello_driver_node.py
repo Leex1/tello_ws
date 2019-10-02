@@ -504,7 +504,7 @@ class TelloNode(tello.Tello):
 
 
 def main():
-    rospy.init_node('tello_node')
+    rospy.init_node('tello_driver_node')
     robot = TelloNode()
     if robot.state != robot.STATE_QUIT:
         rospy.spin()

@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <launch>
-  <arg name="joy_dev" default="/dev/input/gamepads/js_dft" />
+  <arg name="joy_dev" default="/dev/input/js0" />
   <arg name="namespace" default="tello" />
 
   <node pkg="joy" type="joy_node" name="joy_node">

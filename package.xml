@@ -1,11 +1,19 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>tello_driver</name>
-  <version>0.0.0</version>
-  <description>>tello_driver</description>
+  <version>0.1.0</version>
+  <description>>This package provides a ROS interface for the TelloPy library.
+  Development of this ROS package pursues not to modify the TelloPy library, 
+  instead apply any modification or addition to the ros_driver package in an encapsulated manner.</description>
 
-  <author email="ax@elementai.com">Anqi Xu</author>
-  <maintainer email="ax@elementai.com">Anqi Xu</maintainer>
+  <author email="jordyvanappeven@gmail.com">Jordy van Appeven</author>
+  <maintainer email="jordyvanappeven@gmail.com">Jordy van Appeven</maintainer>
+
+  <!-- Url tags are optional, but mutiple are allowed, one per tag -->
+  <!-- Optional attribute type can be: website, bugtracker, or repository -->
+  <!-- Example: -->
+  <url type="website">https://github.com/appie-17/tello_driver</url>
+
 
   <license>Apache2</license>
 

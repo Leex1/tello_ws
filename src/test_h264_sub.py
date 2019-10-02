@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 
 import rospy
-from h264_image_transport.msg import H264Packet
+from sensor_msgs.msg import CompressedImage
 import av
 import cv2
 import numpy
@@ -55,7 +55,7 @@ def callback(msg):
 
 def main():
     rospy.init_node('h264_listener')
-    rospy.Subscriber("/tello/image_raw/h264", H264Packet, callback)
+    rospy.Subscriber("/tello/image_raw/h264", CompressedImage, callback)
     container = av.open(stream)
     rospy.loginfo('main: opened')
     for frame in container.decode(video=0):

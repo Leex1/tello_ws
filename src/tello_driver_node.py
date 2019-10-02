@@ -2,11 +2,10 @@
 import rospy
 from std_msgs.msg import Empty, UInt8, Bool
 from std_msgs.msg import UInt8MultiArray
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from dynamic_reconfigure.server import Server
-from h264_image_transport.msg import H264Packet
 from tello_driver.msg import TelloStatus
 from tello_driver.cfg import TelloConfig
 from cv_bridge import CvBridge, CvBridgeError
@@ -123,7 +122,7 @@ class TelloNode(tello.Tello):
             'status', TelloStatus, queue_size=1, latch=True)
         if self.stream_h264_video:
             self.pub_image_h264 = rospy.Publisher(
-                'image_raw/h264', H264Packet, queue_size=10)
+                'image_raw/h264', CompressedImage, queue_size=10)
         else:
             self.pub_image_raw = rospy.Publisher(
                 'image_raw', Image, queue_size=10)
@@ -436,7 +435,7 @@ class TelloNode(tello.Tello):
 
     def cb_h264_frame(self, event, sender, data, **args):
         frame, seq_id, frame_secs = data
-        pkt_msg = H264Packet()
+        pkt_msg = CompressedImage()
         pkt_msg.header.seq = seq_id
         pkt_msg.header.frame_id = self.caminfo.header.frame_id
         pkt_msg.header.stamp = rospy.Time.from_sec(frame_secs)

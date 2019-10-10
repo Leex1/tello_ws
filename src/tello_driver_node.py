@@ -2,7 +2,7 @@
 import rospy
 from std_msgs.msg import Empty, UInt8, Bool
 from std_msgs.msg import UInt8MultiArray
-from sensor_msgs.msg import Image, CompressedImage
+from sensor_msgs.msg import Image, CompressedImage, Imu
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from dynamic_reconfigure.server import Server
@@ -37,7 +37,7 @@ from tellopy._internal.protocol import *
 from tellopy._internal import event
 
 ## Added statics to 'Tello' object, leave 'TelloPy' package untouched (Jordy) ##
-VIDEO_MODE_CMD                      = 0x0031
+THROW_AND_GO_CMD                    = 0x005d
 EMERGENCY_CMD                       = 'emergency'
 
 ########################################END#######################################
@@ -77,7 +77,7 @@ def notify_cmd_success(cmd, success):
 class TelloNode(tello.Tello):
 #######################################BEGIN#######################################    
 
-    ## Add event variables to leave 'TelloPy' package untouched (Jordy) ##
+    ## Add event variable(s) to leave 'TelloPy' package untouched (Jordy) ##
     EVENT_VIDEO_FRAME_H264 = event.Event('video frame h264')
 
 #########################################END#######################################    
@@ -97,8 +97,13 @@ class TelloNode(tello.Tello):
         self.frame_thread = None
 
         # Connect to drone
-        log = RospyLogger('Tello')
-        log.set_level(self.LOG_WARN)
+        self.log = RospyLogger('Tello')
+
+#######################################BEGIN#######################################    
+        # fast_mode attribute before inheritance from TelloPy object (see override __send_stick_command)
+        self.fast_mode = False        
+#########################################END#######################################    
+
         super(TelloNode, self).__init__(port=9000)
         rospy.loginfo('Connecting to drone @ %s:%d' % self.tello_addr)
         self.connect()
@@ -128,6 +133,7 @@ class TelloNode(tello.Tello):
                 'image_raw', Image, queue_size=10)
 
         self.sub_takeoff = rospy.Subscriber('takeoff', Empty, self.cb_takeoff)
+        self.sub_manual_takeoff = rospy.Subscriber('manual_takeoff', Empty, self.cb_manual_takeoff)
         self.sub_throw_takeoff = rospy.Subscriber(
             'throw_takeoff', Empty, self.cb_throw_takeoff)
         self.sub_land = rospy.Subscriber('land', Empty, self.cb_land)
@@ -138,9 +144,9 @@ class TelloNode(tello.Tello):
         self.sub_flip = rospy.Subscriber('flip', UInt8, self.cb_flip)
         self.sub_cmd_vel = rospy.Subscriber('cmd_vel', Twist, self.cb_cmd_vel)
         self.sub_fast_mode = rospy.Subscriber(
-            'fast_mode', Bool, self.cb_fast_mode)
+            'fast_mode', Empty, self.cb_fast_mode)
 
-        self.subscribe(self.EVENT_FLIGHT_DATA, self.cb_status_telem)
+        self.subscribe(self.EVENT_FLIGHT_DATA, self.cb_status_log)
 
 #########################################BEGIN#####################################
 
@@ -148,16 +154,18 @@ class TelloNode(tello.Tello):
         self.zoom = False
         # Reconstruction H264 video frames        
         self.prev_seq_id = None
-        self.seq_block_count = 0
+        self.seq_block_count = 0        
         
-        # agile flight mode state
-        self.fast_mode = False        
+        # Height from EVENT_FLIGHT_DATA more accurate than MVO (monocular visual odometry)
+        self.height = 0
 
-        #EVENT_LOG Odometry from 'TelloPy' package
-        # self.pub_odom = rospy.Publisher(
-        #    'odom', UInt8MultiArray, queue_size=1, latch=True)
+        #EVENT_LOG_DATA from 'TelloPy' package
         self.pub_odom = rospy.Publisher('odom', Odometry, queue_size=1, latch=True)
-        self.subscribe(self.EVENT_LOG_DATA, self.cb_odom_log)
+        self.pub_imu = rospy.Publisher('imu', Imu, queue_size=1, latch=True)
+
+        self.subscribe(self.EVENT_LOG_DATA, self.cb_data_log)
+
+        self.sub_zoom = rospy.Subscriber('video_mode', Empty, self.cb_video_mode, queue_size=1)
 
         if self.stream_h264_video:
             self.start_video()
@@ -182,10 +190,10 @@ class TelloNode(tello.Tello):
 ###########################################BEGIN###################################
 
 ## Add 'Tello' compositions, leave 'TelloPy' package untouched (Jordy) ##
-        
-    def set_fast_mode(self, enabled):
-        self.fast_mode = enabled
 
+    def set_fast_mode(self, enabled):
+        self.fast_mode = enabled        
+        
     def reset_cmd_vel(self):
         self.left_x = 0.
         self.left_y = 0.
@@ -196,8 +204,9 @@ class TelloNode(tello.Tello):
     # scaling for velocity command
     def __scale_vel_cmd(self, cmd_val):
         return self.vel_cmd_scale * cmd_val
-        
-    def __send_stick_command(self):
+    
+    # Override TelloPy '__send_stick_command' to add 'fast_mode' functionality
+    def _Tello__send_stick_command(self):
         pkt = Packet(STICK_CMD, 0x60)
 
         axis1 = int(1024 + 660.0 * self.right_x) & 0x7ff
@@ -233,6 +242,16 @@ class TelloNode(tello.Tello):
         self.log.debug("stick command: %s" %
                        byte_to_hexstring(pkt.get_buffer()))
         return self.send_packet(pkt)        
+
+    def manual_takeoff(self):
+        # Hold max 'yaw' and min 'pitch', 'roll', 'throttle' for several seconds
+        self.set_pitch(-1)
+        self.set_roll(-1)
+        self.set_yaw(1)
+        self.set_throttle(-1)
+        self.fast_mode = False
+
+        return self._Tello__send_stick_command()
 
     def cb_video_data(self, event, sender, data, **args):
         now = time.time()
@@ -275,7 +294,7 @@ class TelloNode(tello.Tello):
     def set_video_mode(self, zoom=False):
         """Tell the drone whether to capture 960x720 4:3 video, or 1280x720 16:9 zoomed video.
         4:3 has a wider field of view (both vertically and horizontally), 16:9 is crisper."""
-        log.info('set video mode zoom=%s (cmd=0x%02x seq=0x%04x)' % (
+        self.log.info('set video mode zoom=%s (cmd=0x%02x seq=0x%04x)' % (
             zoom, VIDEO_START_CMD, self.pkt_seq_num))
         self.zoom = zoom
         return self.__send_video_mode(int(zoom))
@@ -301,7 +320,7 @@ class TelloNode(tello.Tello):
         
     def flip(self, cmd):
         """ tell drone to perform a flip in directions [0,8] """
-        log.info('flip (cmd=0x%02x seq=0x%04x)' % (FLIP_CMD, self.pkt_seq_num))
+        self.log.info('flip (cmd=0x%02x seq=0x%04x)' % (FLIP_CMD, self.pkt_seq_num))
         pkt = Packet(FLIP_CMD, 0x70)
         pkt.add_byte(cmd)
         pkt.fixup()
@@ -309,7 +328,7 @@ class TelloNode(tello.Tello):
 
 ##### Additions to 'tello_driver_node' (Jordy) #####
     
-    def cb_videomode(self, msg):
+    def cb_video_mode(self, msg):
         if not self.zoom:
             self.set_video_mode(True)
         else:
@@ -317,7 +336,7 @@ class TelloNode(tello.Tello):
 
     def cb_emergency(self, msg):
         success = self.emergency()
-        notify_cmd_success('Emergency', success)   
+        notify_cmd_success('Emergency', success)
 
 ##### Modifications to 'tello_driver_node' (Jordy) #####
 
@@ -336,20 +355,22 @@ class TelloNode(tello.Tello):
             req_sps_pps = True
         if update_all or self.cfg.vel_cmd_scale != config.vel_cmd_scale:
             self.vel_cmd_scale = config.vel_cmd_scale
-
+        if update_all or self.cfg.att_limit != config.att_limit:
+            self.set_attitude_limit(config.att_limit)
         if req_sps_pps:
             self.send_req_video_sps_pps()
 
         self.cfg = config
         return self.cfg
 
-    def cb_status_telem(self, event, sender, data, **args):
+    def cb_status_log(self, event, sender, data, **args):
         speed_horizontal_mps = math.sqrt(
             data.north_speed*data.north_speed+data.east_speed*data.east_speed)/10.
 
         # TODO: verify outdoors: anecdotally, observed that:
         # data.east_speed points to South
         # data.north_speed points to East
+        self.height = data.height/10.
         msg = TelloStatus(
             height_m=data.height/10.,
             speed_northing_mps=-data.east_speed/10.,
@@ -392,26 +413,48 @@ class TelloNode(tello.Tello):
         )
         self.pub_status.publish(msg)
 
-    def cb_odom_log(self, event, sender, data, **args):
+    def cb_data_log(self, event, sender, data, **args):
+        time_cb = rospy.Time.now()
+
         odom_msg = Odometry()
-        
-        # Height received as negative distance to floor in mm
-        odom_msg.pose.pose.position.z = -data.mvo.pos_z*1000
+        odom_msg.child_frame_id = rospy.get_namespace() + 'base_link'
+        odom_msg.header.stamp = time_cb
+        odom_msg.header.frame_id = rospy.get_namespace() + 'local_origin'        
+
+        # Height from MVO received as negative distance to floor
+        odom_msg.pose.pose.position.z = self.height #-data.mvo.pos_z
         odom_msg.pose.pose.position.x = data.mvo.pos_x
         odom_msg.pose.pose.position.y = data.mvo.pos_y
         odom_msg.pose.pose.orientation.w = data.imu.q0
         odom_msg.pose.pose.orientation.x = data.imu.q1
         odom_msg.pose.pose.orientation.y = data.imu.q2
         odom_msg.pose.pose.orientation.z = data.imu.q3
-        # Forward/Backward/Sides- speed received in dm/sec
+        # Linear speeds from MVO received in dm/sec
         odom_msg.twist.twist.linear.x = data.mvo.vel_y/10
         odom_msg.twist.twist.linear.y = data.mvo.vel_x/10
         odom_msg.twist.twist.linear.z = -data.mvo.vel_z/10
-
-        odom_msg.child_frame_id = rospy.get_namespace() + 'base_link'
-        odom_msg.header.stamp = rospy.Time.now()
+        odom_msg.twist.twist.angular.x = data.imu.gyro_x
+        odom_msg.twist.twist.angular.y = data.imu.gyro_y
+        odom_msg.twist.twist.angular.z = data.imu.gyro_z
                 
         self.pub_odom.publish(odom_msg)
+        
+        imu_msg = Imu()
+        imu_msg.header.stamp = time_cb
+        imu_msg.header.frame_id = rospy.get_namespace() + 'base_link'
+        
+        imu_msg.orientation.w = data.imu.q0
+        imu_msg.orientation.x = data.imu.q1
+        imu_msg.orientation.y = data.imu.q2
+        imu_msg.orientation.z = data.imu.q3        
+        imu_msg.angular_velocity.x = data.imu.gyro_x
+        imu_msg.angular_velocity.y = data.imu.gyro_y
+        imu_msg.angular_velocity.z = data.imu.gyro_z
+        imu_msg.linear_acceleration.x = data.imu.acc_x
+        imu_msg.linear_acceleration.y = data.imu.acc_y
+        imu_msg.linear_acceleration.z = data.imu.acc_z
+        
+        self.pub_imu.publish(imu_msg)
 
     def cb_cmd_vel(self, msg):
         self.set_pitch( self.__scale_vel_cmd(msg.linear.y) )
@@ -479,9 +522,13 @@ class TelloNode(tello.Tello):
     def cb_takeoff(self, msg):
         success = self.takeoff()
         notify_cmd_success('Takeoff', success)
+    
+    def cb_manual_takeoff(self, msg):
+        success = self.manual_takeoff()
+        notify_cmd_success('Manual takeoff', success)
 
     def cb_throw_takeoff(self, msg):
-        success = self.throw_takeoff()
+        success = self.throw_and_go()
         if success:
             rospy.loginfo('Drone set to auto-takeoff when thrown')
         else:
@@ -500,7 +547,10 @@ class TelloNode(tello.Tello):
         notify_cmd_success('FlatTrim', success)
 
     def cb_fast_mode(self, msg):
-        self.set_fast_mode(msg.data)
+        if self.fast_mode:
+            self.set_fast_mode(False)
+        elif not self.fast_mode:
+            self.set_fast_mode(True)
 
 
 def main():

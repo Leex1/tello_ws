@@ -2,6 +2,7 @@
 <package format="2">
   <name>tello_driver</name>
   <version>0.2.0</version>
+
   <description>>This package provides a ROS interface for the TelloPy library.
   Development of this ROS package pursues not to modify the TelloPy library, 
   instead apply any modification or addition to the ros_driver package in an encapsulated manner.</description>
@@ -12,8 +13,10 @@
   <!-- Url tags are optional, but mutiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
+  <url>http://www.ros.org/wiki/tello_driver</url>
   <url type="website">https://github.com/appie-17/tello_driver</url>
-
+  <url type="bugtracker">https://github.com/appie-17/tello_driver/issues</url>
+  
 
   <license>Apache2</license>
 

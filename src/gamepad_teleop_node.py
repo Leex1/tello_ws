@@ -7,10 +7,10 @@ from geometry_msgs.msg import Twist
 
 class GamepadState:
     def __init__(self):
-        self.A = False
-        self.B = False
-        self.X = False
-        self.Y = False
+        self.Cr = False
+        self.Ci = False
+        self.Sq = False
+        self.Tr = False
         self.Start = False
         self.Select = False
         self.Sync = False
@@ -35,10 +35,10 @@ class GamepadState:
         if len(msg.buttons) != 17 or len(msg.axes) != 6:
             raise ValueError('Invalid number of buttons (%d) or axes (%d)' % (
                 len(msg.buttons), len(msg.axes)))
-        self.A = msg.buttons[0]
-        self.B = msg.buttons[1]
-        self.Y = msg.buttons[2]
-        self.X = msg.buttons[3]
+        self.Cr = msg.buttons[0]
+        self.Ci = msg.buttons[1]
+        self.Tr = msg.buttons[2]
+        self.Sq = msg.buttons[3]
         self.L1 = msg.buttons[4]
         self.R1 = msg.buttons[5]
         self.L2 = msg.buttons[6]
@@ -75,10 +75,10 @@ class GamepadState:
         self.R2 = msg.buttons[9]
         self.L1 = msg.buttons[10]
         self.R1 = msg.buttons[11]
-        self.Y = msg.buttons[12]
-        self.B = msg.buttons[13]
-        self.A = msg.buttons[14]
-        self.X = msg.buttons[15]
+        self.Tr = msg.buttons[12]
+        self.Ci = msg.buttons[13]
+        self.Cr = msg.buttons[14]
+        self.Sq = msg.buttons[15]
         self.Sync = msg.buttons[16]
         self.LX = msg.axes[0]
         self.LY = msg.axes[1]
@@ -100,7 +100,7 @@ class GamepadState:
         raise err
 
 
-class GamepadMarshallNode:
+class GamepadTeleopNode:
     MAX_FLIP_DIR = 7
 
     def __init__(self):
@@ -109,9 +109,10 @@ class GamepadMarshallNode:
         # if None then not in agent mode, otherwise contains time of latest enable/ping
         self.agent_mode_t = None
         self.flip_dir = 0
+        self.fast_mode = False
 
         # Start ROS node
-        rospy.init_node('gamepad_marshall_node')
+        rospy.init_node('gamepad_teleop_node')
 
         # Load parameters
         self.agent_mode_timeout_sec = rospy.get_param(
@@ -119,14 +120,16 @@ class GamepadMarshallNode:
 
         self.pub_takeoff = rospy.Publisher(
             'takeoff', Empty,  queue_size=1, latch=False)
+        self.pub_manual_takeoff = rospy.Publisher(
+            'manual_takeoff', Empty, queue_size=1, latch=False)
         self.pub_throw_takeoff = rospy.Publisher(
             'throw_takeoff', Empty,  queue_size=1, latch=False)
         self.pub_land = rospy.Publisher(
             'land', Empty,  queue_size=1, latch=False)
         self.pub_palm_land = rospy.Publisher(
             'palm_land', Empty,  queue_size=1, latch=False)
-        self.pub_reset = rospy.Publisher(
-            'reset', Empty,  queue_size=1, latch=False)
+        self.pub_emergency = rospy.Publisher(
+            'emergency', Empty,  queue_size=1, latch=False)
         self.pub_flattrim = rospy.Publisher(
             'flattrim', Empty,  queue_size=1, latch=False)
         self.pub_flip = rospy.Publisher(
@@ -134,11 +137,13 @@ class GamepadMarshallNode:
         self.pub_cmd_out = rospy.Publisher(
             'cmd_vel', Twist, queue_size=10, latch=False)
         self.pub_fast_mode = rospy.Publisher(
-            'fast_mode', Bool,  queue_size=1, latch=False)
+            'fast_mode', Empty,  queue_size=1, latch=False)
+        self.pub_video_mode = rospy.Publisher(
+            'video_mode', Empty, queue_size=1, latch=False)
         self.sub_agent_cmd_in = rospy.Subscriber(
             'agent_cmd_vel_in', Twist, self.agent_cmd_cb)
         self.sub_joy = rospy.Subscriber('/joy', Joy, self.joy_cb)
-        rospy.loginfo('Gamepad marshall node initialized')
+        rospy.loginfo('Gamepad teleop node initialized')
 
     def agent_cmd_cb(self, msg):
         if self.agent_mode_t is not None:
@@ -153,15 +158,20 @@ class GamepadMarshallNode:
         self.joy_state.parse(msg)
 
         # Process emergency stop
-        if not self.joy_state_prev.B and self.joy_state.B:
-            self.pub_reset.publish()
+        if not self.joy_state_prev.R2 and self.joy_state.R2:
+            self.pub_emergency.publish()
             #rospy.logwarn('Issued RESET')
             return
 
         # Process takeoff
-        if not self.joy_state_prev.Start and self.joy_state.Start:
+        if not self.joy_state_prev.L1 and self.joy_state.L1:
             self.pub_takeoff.publish()
             #rospy.logwarn('Issued TAKEOFF')
+
+        # Process manual takeoff
+        if self.joy_state.L2:
+            self.pub_manual_takeoff.publish()
+            #rospy.logwarn('Issued MANUAL_TAKEOFF')
 
         # Process throw takeoff
         if not self.joy_state_prev.DU and self.joy_state.DU:
@@ -169,7 +179,7 @@ class GamepadMarshallNode:
             #rospy.logwarn('Issued THROW_TAKEOFF')
 
         # Process land
-        if not self.joy_state_prev.Select and self.joy_state.Select:
+        if not self.joy_state_prev.R1 and self.joy_state.R1:
             self.pub_land.publish()
             #rospy.logwarn('Issued LAND')
 
@@ -178,11 +188,17 @@ class GamepadMarshallNode:
             self.pub_palm_land.publish()
             #rospy.logwarn('Issued PALM_LAND')
 
-        if not self.joy_state_prev.X and self.joy_state.X:
+        # Process flat trim
+        if not self.joy_state_prev.Sq and self.joy_state.Sq:
             self.pub_flattrim.publish()
             #rospy.logwarn('Issued FLATTRIM')
+            
+        # Process video mode
+        if not self.joy_state_prev.Tr and self.joy_state.Tr:
+            self.pub_video_mode.publish()
+            #rospy.logwarn('Issued VIDEO_MODE')            
 
-        if not self.joy_state_prev.Y and self.joy_state.Y:
+        if not self.joy_state_prev.Sq and self.joy_state.Sq:
             self.pub_flip.publish(self.flip_dir)
             #rospy.logwarn('Issued FLIP %d' % self.flip_dir)
             self.flip_dir += 1
@@ -190,23 +206,21 @@ class GamepadMarshallNode:
                 self.flip_dir = 0
 
         # Update agent bypass mode
-        if self.joy_state.L2:
+        if self.joy_state.Select:
             self.agent_mode_t = rospy.Time.now()
         else:
             self.agent_mode_t = None
 
         # Manual control mode
         if self.agent_mode_t is None:
-            if not self.joy_state_prev.R2 and self.joy_state.R2:
-                self.pub_fast_mode.publish(True)
-            elif self.joy_state_prev.R2 and not self.joy_state.R2:
-                self.pub_fast_mode.publish(False)
+            if not self.joy_state_prev.Start and self.joy_state.Start:                
+                    self.pub_fast_mode.publish()
 
             cmd = Twist()
-            cmd.linear.x = self.joy_state.LY
-            cmd.linear.y = self.joy_state.LX
-            cmd.linear.z = self.joy_state.RY
-            cmd.angular.z = self.joy_state.RX
+            cmd.linear.x = -self.joy_state.RX
+            cmd.linear.y = self.joy_state.RY
+            cmd.linear.z = self.joy_state.LY
+            cmd.angular.z = -self.joy_state.LX
             self.pub_cmd_out.publish(cmd)
 
         # Copy to previous state
@@ -218,7 +232,7 @@ class GamepadMarshallNode:
 
 if __name__ == '__main__':
     try:
-        node = GamepadMarshallNode()
+        node = GamepadTeleopNode()
         node.spin()
     except rospy.ROSInterruptException:
         pass

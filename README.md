@@ -9,7 +9,7 @@ Developing of the tello_driver ROS package is inspired by [tello_driver](https:/
 
 ### Installation
 * ```$ cd <CATKIN_WS/SRC>```
-* ```$ git clone https://github.com/hanyazou/TelloPy/tree/develop-0.7.0```
+* ```$ git clone https://github.com/hanyazou/TelloPy --branch develop-0.7.0```
 * ```$ cd TelloPy```
 * ```$ pip install av numpy --user```
 * ```$ python setup.py install --user```
@@ -63,6 +63,9 @@ TODO
 * ```~/tello_driver_node/tello_ip```
 * ```~/tello_driver_node/vel_cmd_scale```
 * ```~/tello_driver_node/video_req_sps_hz```
+* ```~/tello_driver_node/altitude_limit```
+* ```~/tello_driver_node/attitude_limit```
+* ```~/tello_driver_node/low_bat_threshold```
 
 ### gamepad_teleop_node.py
 Converting gamepad input controls from ```joy_node``` to commands for ```tello_driver_node.py```
@@ -106,7 +109,7 @@ None
 ## 3. Troubleshooting
 
 ## 4. Notes
-*When using PyAV to decode raw video instead of streaming h264 video, required to relaunch the ```tello_driver_node.py``` to continue the video stream after disconnected WiFi connection.
+*When using PyAV to decode h264 video, instead of ROS [codec_image_transport](https://github.com/yoshito-n-students/codec_image_transport), relaunch the ```tello_driver_node.py``` to continue the video stream when WiFi disconnected.
 
 ## 5. Work-in-progress
 

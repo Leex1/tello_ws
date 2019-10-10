@@ -38,6 +38,8 @@ from tellopy._internal import event
 
 ## Added statics to 'Tello' object, leave 'TelloPy' package untouched (Jordy) ##
 THROW_AND_GO_CMD                    = 0x005d
+ATTITUDE_MSG                        = 0x1056
+ATTITUDE_LIMIT_CMD                  = 0x1059
 EMERGENCY_CMD                       = 'emergency'
 
 ########################################END#######################################
@@ -185,14 +187,11 @@ class TelloNode(tello.Tello):
         
 ###########################################END#####################################
 
-        rospy.loginfo('Tello driver node ready')
+        rospy.loginfo('Tello driver node ready')        
 
 ###########################################BEGIN###################################
 
-## Add 'Tello' compositions, leave 'TelloPy' package untouched (Jordy) ##
-
-    def set_fast_mode(self, enabled):
-        self.fast_mode = enabled        
+## Add 'Tello' compositions, leave 'TelloPy' package untouched (Jordy) ##        
         
     def reset_cmd_vel(self):
         self.left_x = 0.
@@ -355,8 +354,6 @@ class TelloNode(tello.Tello):
             req_sps_pps = True
         if update_all or self.cfg.vel_cmd_scale != config.vel_cmd_scale:
             self.vel_cmd_scale = config.vel_cmd_scale
-        if update_all or self.cfg.att_limit != config.att_limit:
-            self.set_attitude_limit(config.att_limit)
         if req_sps_pps:
             self.send_req_video_sps_pps()
 

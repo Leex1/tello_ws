@@ -192,6 +192,9 @@ class TelloNode(tello.Tello):
 ###########################################BEGIN###################################
 
 ## Add 'Tello' compositions, leave 'TelloPy' package untouched (Jordy) ##        
+
+    def set_fast_mode(self, enabled):
+        self.fast_mode = enabled
         
     def reset_cmd_vel(self):
         self.left_x = 0.
@@ -346,6 +349,12 @@ class TelloNode(tello.Tello):
             self.cfg = config
             update_all = True
 
+        if update_all or self.cfg.altitude_limit != config.altitude_limit:
+            self.set_alt_limit(config.altitude_limit)
+        if update_all or self.cfg.attitude_limit != config.attitude_limit:
+            self.set_att_limit(config.attitude_limit)
+        if update_all or self.cfg.low_bat_threshold != config.low_bat_threshold:
+            self.set_low_bat_threshold(config.low_bat_threshold)
         if update_all or self.cfg.fixed_video_rate != config.fixed_video_rate:
             self.set_video_encoder_rate(config.fixed_video_rate)
             req_sps_pps = True

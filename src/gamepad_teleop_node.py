@@ -189,7 +189,7 @@ class GamepadTeleopNode:
             #rospy.logwarn('Issued PALM_LAND')
 
         # Process flat trim
-        if not self.joy_state_prev.Sq and self.joy_state.Sq:
+        if not self.joy_state_prev.Cr and self.joy_state.Cr:
             self.pub_flattrim.publish()
             #rospy.logwarn('Issued FLATTRIM')
             

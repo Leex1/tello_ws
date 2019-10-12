@@ -2,8 +2,8 @@
 Changelog for package tello_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2019-10-12)
+------------------
 * Merge branch 'development' of https://github.com/appie-17/tello_driver into development
 * CMake configuration include functional tello_driver for ROS repo
 * Update README.md

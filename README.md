@@ -27,7 +27,7 @@ Developing of the tello_driver ROS package is inspired by [tello_driver](https:/
 
 ## 2. Nodes
 
-### tello_driver_node.py
+### 2.1 tello_driver_node.py
 Main node running as interface for the TelloPy library
 
 #### Subscribed topics
@@ -67,7 +67,7 @@ TODO
 * ```~/tello_driver_node/attitude_limit```
 * ```~/tello_driver_node/low_bat_threshold```
 
-### gamepad_teleop_node.py
+### 2.2 gamepad_teleop_node.py
 Converting gamepad input controls from ```joy_node``` to commands for ```tello_driver_node.py```
 
 #### Subscribed topics
@@ -90,19 +90,19 @@ None
 
 #### Parameters
 
-### joy_node
+### 2.3 joy_node
 Receive input from gamepad controller and publish into ```sensor_msgs/Joy``` message
 
-### Subscribed topics
+#### Subscribed topics
 None
 
-### Published topics
+#### Published topics
 * ```/joy``` [sensor_msgs/Joy](http://docs.ros.org/api/sensor_msgs/html/msg/Joy.html)
 
-### Services
+#### Services
 None 
 
-### Parameters
+#### Parameters
 * ```~/joy_node/deadzone```
 * ```~/joy_node/dev```
 

@@ -10,7 +10,6 @@ from tello_driver.msg import TelloStatus
 from tello_driver.cfg import TelloConfig
 from cv_bridge import CvBridge, CvBridgeError
 
-import av
 import math
 import numpy as np
 import threading
@@ -174,6 +173,7 @@ class TelloNode(tello.Tello):
             self.subscribe(self.EVENT_VIDEO_DATA, self.cb_video_data)            
             self.subscribe(self.EVENT_VIDEO_FRAME_H264, self.cb_h264_frame)
         else:
+            import av #Hack to prevent troublesome install of PyAV when not used
             self.frame_thread = threading.Thread(target=self.framegrabber_loop)
             self.frame_thread.start()
 

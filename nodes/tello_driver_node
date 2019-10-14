@@ -35,12 +35,6 @@ from tellopy._internal.protocol import *
 # Add 'EVENT_VIDEO_FRAME_H264' to collect h264 images
 from tellopy._internal import event
 
-## Added statics to 'Tello' object, leave 'TelloPy' package untouched (Jordy) ##
-THROW_AND_GO_CMD                    = 0x005d
-ATTITUDE_MSG                        = 0x1056
-ATTITUDE_LIMIT_CMD                  = 0x1059
-EMERGENCY_CMD                       = 'emergency'
-
 ########################################END#######################################
 
 class RospyLogger(logger.Logger):
@@ -151,8 +145,6 @@ class TelloNode(tello.Tello):
 
 #########################################BEGIN#####################################
 
-        # video zoom state
-        self.zoom = False
         # Reconstruction H264 video frames        
         self.prev_seq_id = None
         self.seq_block_count = 0        
@@ -173,7 +165,7 @@ class TelloNode(tello.Tello):
             self.subscribe(self.EVENT_VIDEO_DATA, self.cb_video_data)            
             self.subscribe(self.EVENT_VIDEO_FRAME_H264, self.cb_h264_frame)
         else:
-            import av #Hack to prevent troublesome install of PyAV when not used
+            
             self.frame_thread = threading.Thread(target=self.framegrabber_loop)
             self.frame_thread.start()
 
@@ -284,22 +276,7 @@ class TelloNode(tello.Tello):
             else:
                 frame = b''.join(self.frame_pkts[:sub_id+1])
             self._Tello__publish(event=self.EVENT_VIDEO_FRAME_H264,
-                           data=(frame, self.seq_block_count*256+seq_id, self.frame_t))
-        
-    # video mode command
-    def __send_video_mode(self, mode):
-        pkt = Packet(VIDEO_MODE_CMD)
-        pkt.add_byte(mode)
-        pkt.fixup()
-        return self.send_packet(pkt)
-        
-    def set_video_mode(self, zoom=False):
-        """Tell the drone whether to capture 960x720 4:3 video, or 1280x720 16:9 zoomed video.
-        4:3 has a wider field of view (both vertically and horizontally), 16:9 is crisper."""
-        self.log.info('set video mode zoom=%s (cmd=0x%02x seq=0x%04x)' % (
-            zoom, VIDEO_START_CMD, self.pkt_seq_num))
-        self.zoom = zoom
-        return self.__send_video_mode(int(zoom))
+                           data=(frame, self.seq_block_count*256+seq_id, self.frame_t))        
 
     def send_req_video_sps_pps(self):
         """Manually request drone to send an I-frame info (SPS/PPS) for video stream."""
@@ -496,6 +473,7 @@ class TelloNode(tello.Tello):
         self.pub_caminfo.publish(self.caminfo)        
 
     def framegrabber_loop(self):
+        import av #Import here as 'hack' to prevent troublesome install of PyAV when not used
         # Repeatedly try to connect
         vs = self.get_video_stream()
         while self.state != self.STATE_QUIT:

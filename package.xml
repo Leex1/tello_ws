@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>tello_driver</name>
-  <version>0.3.0</version>
+  <version>0.3.1</version>
 
   <description>>This package provides a ROS interface for the TelloPy library.
   Development of this ROS package pursues not to modify the TelloPy library, 

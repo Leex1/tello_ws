@@ -9,7 +9,7 @@
 
 	<group ns="$(arg namespace)">
 
-		<node pkg="tello_driver" name="tello_driver_node" type="tello_driver_node.py" output="screen">
+		<node pkg="tello_driver" name="tello_driver_node" type="tello_driver_node" output="screen">
 			<param name="local_cmd_client_port" value="$(arg local_cmd_client_port)" />
 			<param name="local_vid_server_port" value="$(arg local_vid_server_port)" />
 			<param name="tello_ip" value="$(arg tello_ip)" />

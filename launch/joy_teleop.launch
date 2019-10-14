@@ -9,7 +9,7 @@
   </node>
 
   <group ns="$(arg namespace)">
-    <node pkg="tello_driver" type="gamepad_teleop_node.py" name="gamepad_teleop" />
+    <node pkg="tello_driver" type="gamepad_teleop_node" name="gamepad_teleop" />
   </group>
 
 </launch>

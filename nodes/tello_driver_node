@@ -169,7 +169,7 @@ class TelloNode(tello.Tello):
             self.frame_thread = threading.Thread(target=self.framegrabber_loop)
             self.frame_thread.start()
 
-        calib_path = rospy.get_param('~camera_calib', '') 
+        calib_path = rospy.get_param('~camera_calibration', '') 
         self.caminfo = cim.loadCalibrationFile(calib_path, 'camera_front')
         self.caminfo.header.frame_id = rospy.get_param('~camera_frame', rospy.get_namespace() + 'camera_front')
         self.pub_caminfo = rospy.Publisher('camera/camera_info', CameraInfo, queue_size=1, latch=True)                

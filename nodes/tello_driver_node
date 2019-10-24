@@ -125,7 +125,7 @@ class TelloNode(tello.Tello):
                 'image_raw/h264', CompressedImage, queue_size=10)
         else:
             self.pub_image_raw = rospy.Publisher(
-                'image_raw', Image, queue_size=10)
+                'camera/image_raw', Image, queue_size=10)
 
         self.sub_takeoff = rospy.Subscriber('takeoff', Empty, self.cb_takeoff)
         self.sub_manual_takeoff = rospy.Subscriber('manual_takeoff', Empty, self.cb_manual_takeoff)
@@ -405,7 +405,7 @@ class TelloNode(tello.Tello):
         odom_msg.header.frame_id = rospy.get_namespace() + 'local_origin'        
 
         # Height from MVO received as negative distance to floor
-        odom_msg.pose.pose.position.z = self.height #-data.mvo.pos_z
+        odom_msg.pose.pose.position.z = -data.mvo.pos_z #self.height #-data.mvo.pos_z
         odom_msg.pose.pose.position.x = data.mvo.pos_x
         odom_msg.pose.pose.position.y = data.mvo.pos_y
         odom_msg.pose.pose.orientation.w = data.imu.q0
